@@ -1,0 +1,55 @@
+AWSTemplateFormatVersion: 2010-09-09
+Transform: AWS::Serverless-2016-10-31
+Description: AWS SAM Swagger.
+
+Parameters:
+  Env:
+    Type: String
+    Default: dev
+  ArtifactBucket:
+    Type: String
+    Default: kaonashi-aws-sam-deploy-dev
+Resources:
+  ServerlessFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Runtime: python3.7
+      Handler: health_check.lambda_handler
+      FunctionName: !Sub health-check-${Env}
+      MemorySize: 128
+      Timeout: 300
+      CodeUri: "./serverless-function.zip"
+      AutoPublishAlias: release
+      Role: !GetAtt LambdaRole.Arn
+      Events:
+        Timer:
+          Type: Schedule
+          Properties:
+            Schedule: rate(30 minutes)
+  LambdaRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: "sts:AssumeRole"
+      Policies:
+        -
+          PolicyName: "lambda_logs_policy"
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: "Allow"
+                Action: "logs:*"
+                Resource: "*"
+              - Effect: "Allow"
+                Action:
+                  - ec2:CreateNetworkInterface
+                  - ec2:DescribeNetworkInterfaces
+                  - ec2:DetachNetworkInterface
+                  - ec2:DeleteNetworkInterface
+                Resource: "*"
+                
