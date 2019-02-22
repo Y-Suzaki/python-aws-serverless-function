@@ -1,11 +1,14 @@
 AWSTemplateFormatVersion: 2010-09-09
 Transform: AWS::Serverless-2016-10-31
-Description: AWS SAM Swagger.
+Description: Serverless application for health check.
 
 Parameters:
-  Env:
+  TargetApplication:
     Type: String
-    Default: dev
+    Default: testApp
+  TargetUrl:
+    Type: String
+    Default: https://www.google.com
   ArtifactBucket:
     Type: String
     Default: kaonashi-aws-sam-deploy-dev
@@ -15,12 +18,16 @@ Resources:
     Properties:
       Runtime: python3.7
       Handler: health_check.lambda_handler
-      FunctionName: !Sub health-check-${Env}
+      FunctionName: !Sub health-check-${TargetApplication}
       MemorySize: 128
       Timeout: 300
-      CodeUri: "./serverless-function.zip"
+      CodeUri: ./serverless-function.zip
       AutoPublishAlias: release
       Role: !GetAtt LambdaRole.Arn
+      Environment:
+        Variables:
+          TARGET_APPLICATION: !Ref TargetApplication
+          TARGET_URL: !Ref TargetUrl
       Events:
         Timer:
           Type: Schedule
@@ -30,26 +37,25 @@ Resources:
     Type: AWS::IAM::Role
     Properties:
       AssumeRolePolicyDocument:
-        Version: "2012-10-17"
+        Version: 2012-10-17
         Statement:
           - Effect: Allow
             Principal:
               Service: lambda.amazonaws.com
-            Action: "sts:AssumeRole"
+            Action: sts:AssumeRole
       Policies:
         -
-          PolicyName: "lambda_logs_policy"
+          PolicyName: lambda_logs_policy
           PolicyDocument:
-            Version: "2012-10-17"
+            Version: 2012-10-17
             Statement:
-              - Effect: "Allow"
-                Action: "logs:*"
-                Resource: "*"
-              - Effect: "Allow"
+              - Effect: Allow
+                Action: logs:CreateLogGroup
+                Resource: !Sub arn:aws:logs:${AWS::Region}:${AWS::AccountId}:*
+              - Effect: Allow
                 Action:
-                  - ec2:CreateNetworkInterface
-                  - ec2:DescribeNetworkInterfaces
-                  - ec2:DetachNetworkInterface
-                  - ec2:DeleteNetworkInterface
-                Resource: "*"
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource: !Sub arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/health-check-${TargetApplication}:*
+
                 
