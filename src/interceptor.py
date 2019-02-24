@@ -1,7 +1,12 @@
+"""
+デコレータによる共通処理を提供するモジュールです。
+"""
 from logger import LambdaLogger
 
 
 def trace_interceptor(func):
+    """ 処理の開始、終了（エラー含む）時にログを出力します。
+    """
     import functools
 
     @functools.wraps(func)

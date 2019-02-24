@@ -4,7 +4,7 @@ s3_bucket="ys-dev-web-iot-rule-test"
 
 echo "** Start to deploy and build. **"
 mkdir -p deploy
-pip3 install -r src/requirements.txt -t deploy
+pip3 install -r requirements.txt -t deploy
 cp -r src/* deploy
 cd deploy
 zip -r ../serverless-function.zip *
@@ -38,4 +38,6 @@ aws s3 rm s3://${s3_bucket}/serverless-function/ \
   --region us-west-2 \
   --profile default \
   --recursive
+
 rm -rf deploy
+rm -f aws-sam-deploy.yaml serverless-function.zip

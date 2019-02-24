@@ -1,14 +1,25 @@
+"""
+ロギングの機能を提供するモジュールです。
+ログフォーマットの統一のため、本ロギングを使用してください。
+"""
 from logging import getLogger, getLevelName, StreamHandler, Formatter
 from configuration import get_log_level
 import time
 
 
 class LambdaLogger:
+    """ Lambda用のロガーです。
+    """
     @staticmethod
     def get_logger():
+        """ ロガーを取得します。
+        """
         return LambdaLogger(get_log_level())
 
     def __init__(self, level_name):
+        """ ログフォーマットの指定をします。
+        :param level_name: ログレベル
+        """
         level = getLevelName(level_name)
         self.logger = getLogger()
         self.logger.setLevel(level)

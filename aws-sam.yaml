@@ -12,12 +12,15 @@ Parameters:
   ArtifactBucket:
     Type: String
     Default: kaonashi-aws-sam-deploy-dev
+  SNSTopicArn:
+    Type: String
+    Default: arn:aws:sns:us-west-2:838023436798:sns-topic-health-check
 Resources:
   ServerlessFunction:
     Type: AWS::Serverless::Function
     Properties:
       Runtime: python3.7
-      Handler: main.lambda_handler
+      Handler: health_check.health_check
       FunctionName: !Sub health-check-${TargetApplication}
       MemorySize: 128
       Timeout: 300
@@ -33,6 +36,11 @@ Resources:
           Type: Schedule
           Properties:
             Schedule: rate(30 minutes)
+  LogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub /aws/lambda/health-check-${TargetApplication}
+      RetentionInDays: 7
   LambdaRole:
     Type: AWS::IAM::Role
     Properties:
@@ -56,6 +64,40 @@ Resources:
                 Action:
                   - logs:CreateLogStream
                   - logs:PutLogEvents
-                Resource: !Sub arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/health-check-${TargetApplication}:*
-
-                
+                Resource: !Sub arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:${LogGroup}:*
+  FailedMetricFilter:
+    Type: AWS::Logs::MetricFilter
+    DependsOn: LogGroup
+    Properties:
+      LogGroupName: !Sub /aws/lambda/health-check-${TargetApplication}
+      FilterPattern: "[log_level=ERROR, error_code=E0001, timestamp, ...]"
+      MetricTransformations:
+        - MetricValue: 1
+          MetricNamespace: !Sub ServiceGroup/${TargetApplication}
+          MetricName: HealthCheckError
+  SucceededMetricFilter:
+    Type: AWS::Logs::MetricFilter
+    DependsOn: LogGroup
+    Properties:
+      LogGroupName: !Sub /aws/lambda/health-check-${TargetApplication}
+      FilterPattern: "[log_level=INFO, error_code=I0002, timestamp, ...]"
+      MetricTransformations:
+      - MetricValue: 0
+        MetricNamespace: !Sub ServiceGroup/${TargetApplication}
+        MetricName: HealthCheckError
+  CloudWatchAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmActions:
+        - !Ref SNSTopicArn
+      AlarmDescription: !Sub "Health check failed, please check the target application, ${TargetApplication}."
+      AlarmName: !Sub HealthCheckError-${TargetApplication}
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      EvaluationPeriods: 1
+      MetricName: HealthCheckError
+      Namespace: !Sub ServiceGroup/${TargetApplication}
+      Period: 300
+      Statistic: Sum
+      Threshold: 1
+      TreatMissingData: notBreaching
+      Unit: Count
